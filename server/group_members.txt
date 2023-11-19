@@ -1,0 +1,6 @@
+group1 john_doe
+group1 bob_gray
+group2 alice_johnson
+group2 charlie_adams
+group3 jane_smith
+group3 alice_johnson

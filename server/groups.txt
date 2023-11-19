@@ -1,0 +1,3 @@
+group1 coding_club john_doe
+group2 music_lovers alice_johnson
+group3 book_fans jane_smith
