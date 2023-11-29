@@ -1,3 +1,4 @@
-group1 coding_club john_doe
-group2 music_lovers alice_johnson
-group3 book_fans jane_smith
+groupname group_creator
+music_lovers alice_johnson
+book_fans jane_smith
+fa_ko_co_buon tienn

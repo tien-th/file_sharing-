@@ -6,16 +6,16 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <pthread.h> 
 
-#define PORT 5550
+#define PORT 9998
 #define BUFF_SIZE 512
 #define FILE_BUFF_SIZE 1024
 #define MAX_CLIENTS 100
 
+typedef struct sockaddr SOCKADDR;
+typedef struct sockaddr_in SOCKADDR_IN;
 
-void send_message(int client_socket, const char *message) {
-    send(client_socket, message, strlen(message), 0);
-}
 int check_username_existence(const char *username) {
     FILE *file = fopen("users.txt", "r");
     if (file != NULL) {
@@ -33,97 +33,99 @@ int check_username_existence(const char *username) {
     }
     return 0; // Username does not exist
 }
-void handle_user_registration(int client_socket) {
-    char buffer[BUFF_SIZE];
-    int bytes_received = recv(client_socket, buffer, BUFF_SIZE, 0);
-    if (bytes_received <= 0) return;
 
-    char username[50], password[50];
-    sscanf(buffer, "%s %s", username, password);
+
+// utils.c
+void send_message(int client_socket, const char *message) {
+    send(client_socket, message, strlen(message), 0);
+}
+
+void handle_user_registration(int client_socket, char *command) {
+    // Implement user registration logic
+    // Read user data from socket and save to 'users.txt'
+    char REG[10] = {0};
+    char username[20] = {0};
+    char password[20] = {0};
+    sscanf(command, "%s %s %s", REG, username, password);
 
     if (check_username_existence(username)) {
         // Username already exists, send a message to the client
-        send_message(client_socket, "Username already exists");
+        send_message(client_socket, "-1");
     } else {
         // Username does not exist, append buffer to file
         FILE *file = fopen("users.txt", "a");
         if (file != NULL) {
-            fputs(buffer, file);
+            fputs(username, file);
+            fputs(" ", file); // Add a space between username and password
+            fputs(password, file);
             fputs("\n", file);
             fclose(file);
 
             // Send success message to the client
-            send_message(client_socket, "Registration successful");
+            send_message(client_socket, username );
         } else {
             // Error opening the file
-            send_message(client_socket, "Error during registration");
+            send_message(client_socket, "0");
         }
     }
+
 }
 
-// void handle_user_registration(int client_socket) {
-//     // Implement user registration logic
-//     // Read user data from socket and save to 'users.txt'
-
-//     char buffer[BUFF_SIZE];
-//     int bytes_received = recv(client_socket, buffer, BUFF_SIZE, 0);
-//     if (bytes_received <= 0) return;
-
-//     char username[50], password[50];
-//     sscanf(buffer, "%s %s", username, password);
-
-//     FILE *file = fopen("users.txt", "a");
-//     if (file != NULL) {
-//         // check if username already exists in file
-        
-
-//         fputs(buffer, file);
-//         fputs("\n", file);
-//         fclose(file);
-//     }
-// }
-
-void handle_user_login(int client_socket) {
+void handle_user_login(int client_socket, char *command) {
     // Implement user login logic
-    // Check credentials against 'users.txt'
-    char buffer[BUFF_SIZE];
-    int bytes_received = recv(client_socket, buffer, BUFF_SIZE, 0);
-    if (bytes_received <= 0) return;
+    
+    // Send success or failure response to the client
 
+    char LOG[10] = {0};
+    char username[20];
+    char password[20];
+    sscanf(command, "%s %s %s", LOG, username, password);   
+    // Check credentials against 'users.txt' 
     FILE *file = fopen("users.txt", "r");
-    char line[BUFF_SIZE];
-    int found = 0;
-
     if (file != NULL) {
-        while (fgets(line, sizeof(line), file)) {
-            if (strncmp(line, buffer, strlen(buffer)) == 0) {
-                found = 1;
-                break;
+        char line[BUFF_SIZE];
+        while (fgets(line, sizeof(line), file) != NULL) {
+            char stored_username[20];
+            char stored_password[20];
+            sscanf(line, "%s %s", stored_username, stored_password);
+
+            if (strcmp(username, stored_username) == 0 && strcmp(password, stored_password) == 0) {
+                fclose(file);
+                send_message(client_socket, username);
+                return;
             }
         }
         fclose(file);
     }
-    // Send login status to client
-    // For example: send(client_socket, found ? "SUCCESS" : "FAIL", ...)
-
+    send_message(client_socket, "-1");
 }
 
-void handle_group_creation(int client_socket) {
+void handle_group_creation(int client_socket, char *command) {
     // Implement group creation logic
     // Save group data to 'groups.txt' and 'group_members.txt'
-    char buffer[BUFF_SIZE];
-    int bytes_received = recv(client_socket, buffer, BUFF_SIZE, 0);
-    if (bytes_received <= 0) return;
+
+    char CREATE_GROUP[20] = {0};
+    char group_name[20] = {0};
+    char username[20] = {0};
+    sscanf(command, "%s %s %s", CREATE_GROUP, username, group_name);
 
     FILE *file = fopen("groups.txt", "a");
     if (file != NULL) {
-        fputs(buffer, file);
+        fputs(group_name, file);
+        fputs(" ", file);
+        fputs(username, file);
         fputs("\n", file);
         fclose(file);
     }
 
-    // Additional logic to update group_members.txt
-    // ...
+    file = fopen("group_members.txt", "a");
+    if (file != NULL) {
+        fputs(group_name, file);
+        fputs(" ", file);
+        fputs(username, file);
+        fputs("\n", file);
+        fclose(file);
+    }
 
 }
 
@@ -183,39 +185,38 @@ void handle_file_download(int client_socket) {
     }
 }
 
-void process_client_request(int client_socket) {
-    char command[BUFF_SIZE];
-    int bytes_read = recv(client_socket, command, BUFF_SIZE - 1, 0);
-    if (bytes_read <= 0) {
-        printf("Client disconnected\n");
+void * process_client_request(void *arg) {
+    int client_socket = *((int*)arg);
+    free(arg);
 
-        return;
+    char command[BUFF_SIZE] = {0};
+
+    while(1) {
+        memset(command, 0, BUFF_SIZE);
+        
+        printf("Waiting for command...\n");
+        
+        int bytes_read = recv(client_socket, command, BUFF_SIZE - 1, 0);
+        if (bytes_read <= 0) return 0;
+
+        // command[bytes_read] = '\0';
+
+        printf("Received command: %s\n", command);
+
+        if (strncmp(command, "REG", 3) == 0) {
+            handle_user_registration(client_socket, command);
+        } else if (strncmp(command, "LOGIN", 5) == 0) {
+            handle_user_login(client_socket, command);
+        } else if (strncmp(command, "CREATE_GROUP", 12) == 0) {
+            handle_group_creation(client_socket, command);
+        } else if (strcmp(command, "JOIN_GROUP") == 0) {
+            handle_join_group(client_socket);
+        } else if (strcmp(command, "UPLOAD_FILE") == 0) {
+            handle_file_upload(client_socket);
+        } else if (strcmp(command, "DOWNLOAD_FILE") == 0) {
+            handle_file_download(client_socket);
+        }
     }
-
-    command[bytes_read] = '\0';
-
-    printf("Received command: %s\n", command);
-    printf("Processing command...\n");
-
-    if (strcmp(command, "REGISTER") == 0) {
-        char *msg = "Pls give me username and password";
-        send(client_socket, msg, strlen(msg) , 0);
-        handle_user_registration(client_socket);
-    } else if (strcmp(command, "LOGIN") == 0) {
-        handle_user_login(client_socket);
-    } else if (strcmp(command, "CREATE_GROUP") == 0) {
-        handle_group_creation(client_socket);
-    } else if (strcmp(command, "JOIN_GROUP") == 0) {
-        handle_join_group(client_socket);
-    } else if (strcmp(command, "UPLOAD_FILE") == 0) {
-        handle_file_upload(client_socket);
-    } else if (strcmp(command, "DOWNLOAD_FILE") == 0) {
-        handle_file_download(client_socket);
-    }else {
-        // send "INVALID" to client
-        send(client_socket, "INVALID", 7, 0);
-    }
-    // Add other commands as necessary
 }
 
 int main() {
@@ -252,13 +253,10 @@ int main() {
         }
         printf("\nNew connection\n");
 
-        if (fork() == 0) {
-            close(server_fd);
-            process_client_request(client_socket);
-            close(client_socket);
-            exit(0);
-        }
-        close(client_socket);
+        pthread_t pid;
+        int *arg = (int *)calloc(1, sizeof(int));
+        *arg = client_socket;
+        pthread_create(&pid, NULL, process_client_request, (void*)arg);
     }
     close(server_fd);
     return 0;

@@ -1,18 +1,27 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-int main() {
-    char buffer[20];
-    int value = 42;
+#define BUFF_SIZE 512
 
-    // Format the string and store it in the buffer
-    int len = snprintf(buffer, sizeof(buffer), "The answer is %d", value);
 
-    if (len >= sizeof(buffer)) {
-        printf("Output was truncated.\n");
-    } else {
-        // Print the formatted string
-        printf("Formatted string: %s\n", buffer);
-    }
 
-    return 0;
+int main (){
+
+    char response[BUFF_SIZE] = "CREATE_GROUP"; 
+
+    // print len of response
+    printf("%ld\n", strlen(response));
+
+
+    
+    char *token = strtok(response, " ");
+    char *token1 = strtok(NULL, " ");
+
+    // printf("%s\n", token1);
+    char respon[BUFF_SIZE] = {0};
+    fflush(stdin);
+    fgets(respon, BUFF_SIZE, stdin);
+    printf("%s\n", respon);
+    return 0 ; 
 }
