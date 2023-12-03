@@ -16,6 +16,7 @@
 typedef struct sockaddr SOCKADDR;
 typedef struct sockaddr_in SOCKADDR_IN;
 
+
 int check_username_existence(const char *username) {
     FILE *file = fopen("users.txt", "r");
     if (file != NULL) {
@@ -261,3 +262,14 @@ int main() {
     close(server_fd);
     return 0;
 }
+
+
+// Kiểm soát quyền truy cập ??? 
+// Xử lý file có kích thước lớn bất kỳ ??? 
+// Liệt kê danh sách nhóm 
+// Liệt kê danh sách thành viên trong nhóm
+// Yêu cầu tham gia một nhóm và phê duyệt
+// Thoát khỏi một nhóm
+// Mời tham gia một nhóm và phê duỵet, Xóa thành viên khỏi nhóm
+// Liệt kê nội dung thư mục 
+//  Ghi log 

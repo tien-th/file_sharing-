@@ -226,9 +226,10 @@ int main() {
                     fgets(group_name, sizeof(group_name), stdin);
                     group_name[strcspn(group_name, "\n")] = '\0';
                     create_group(sockfd, "CREATE_GROUP", USERNAME ,group_name);
-                case 2:
-                    char group_list[BUFF_SIZE] = {0}; 
-                    send_command(sockfd, "GET_GROUP_LIST", USERNAME); 
+                // case 2:
+    
+                    // char group_list[BUFF_SIZE] = {0}; 
+                    // send_command(sockfd, "GET_GROUP_LIST", USERNAME); 
             }
         }
 
