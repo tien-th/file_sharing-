@@ -8,10 +8,12 @@
 #include <signal.h>
 #include <pthread.h> 
 
-#define PORT 9998
+#define PORT 9989
 #define BUFF_SIZE 512
 #define FILE_BUFF_SIZE 1024
 #define MAX_CLIENTS 100
+#define MAX_GROUP 100
+
 
 typedef struct sockaddr SOCKADDR;
 typedef struct sockaddr_in SOCKADDR_IN;
@@ -130,20 +132,63 @@ void handle_group_creation(int client_socket, char *command) {
 
 }
 
-void handle_join_group(int client_socket) {
-    // Implement logic for a user to join a group
-    // Update 'group_members.txt'
-    char buffer[BUFF_SIZE];
-    int bytes_received = recv(client_socket, buffer, BUFF_SIZE, 0);
-    if (bytes_received <= 0) return;
+// void get_groups_not_joined(char *username, char ** groups_not_joined) {
+//     // Read group_member.txt file to get groups that the user has not joined
+//     // Send the list of groups to the client
+// } 
 
-    FILE *file = fopen("group_members.txt", "a");
-    if (file != NULL) {
-        fputs(buffer, file);
-        fputs("\n", file);
-        fclose(file);
+void get_groups_not_joined(const char *username, char *groups_not_joined) {
+    printf("groups_not_joined: %s\n", groups_not_joined);
+    printf("username: %s\n", username);
+
+    FILE *groups_file = fopen("groups.txt", "r");
+    FILE *members_file = fopen("group_members.txt", "r");
+    char line[1024];
+    char group_name[20], member[20], creator[20];
+    int is_member;
+
+    if (groups_file == NULL || members_file == NULL) {
+        strcpy(groups_not_joined, "Error");
+        return;
     }
 
+    // Skip the header line in groups.txt
+    // fgets(line, sizeof(line), groups_file);
+
+    while (fscanf(groups_file, "%s %s", group_name, creator) != EOF) {
+        is_member = 0;
+        printf("checking group %s\n", group_name);
+        rewind(members_file); // Reset the file pointer to the beginning for each group
+
+        // Skip the header line in group_members.txt
+        // fgets(line, sizeof(line), members_file);
+        char group_name_tmp[20]={0};
+        while (fscanf(members_file, "%s %s", group_name_tmp, member) != EOF) {
+            // if (strcmp(username, member) == 0 && strcmp(username, creator) != 0) {
+            if (strcmp(username, member) == 0 && strcmp(group_name_tmp, group_name)==0 ) {
+                is_member = 1;
+                printf("check member %s\n", member) ;
+                break;
+            }
+        }
+
+        if (!is_member) {
+            printf("\nUser %s has not joined group %s\n", username, group_name);
+            strcat(groups_not_joined, group_name);
+            strcat(groups_not_joined, "\n");
+        }
+        printf("result: %d\n", is_member );
+    }
+
+    fclose(groups_file);
+    fclose(members_file);
+}
+
+
+
+
+void handle_join_group(int client_socket) {
+    return ;
 }
 
 void handle_file_upload(int client_socket) {
@@ -210,12 +255,20 @@ void * process_client_request(void *arg) {
             handle_user_login(client_socket, command);
         } else if (strncmp(command, "CREATE_GROUP", 12) == 0) {
             handle_group_creation(client_socket, command);
-        } else if (strcmp(command, "JOIN_GROUP") == 0) {
-            handle_join_group(client_socket);
-        } else if (strcmp(command, "UPLOAD_FILE") == 0) {
-            handle_file_upload(client_socket);
-        } else if (strcmp(command, "DOWNLOAD_FILE") == 0) {
-            handle_file_download(client_socket);
+        } else if (strncmp(command, "GET_GROUP_LIST", 14) == 0) {
+            char username[20] = {0};
+            sscanf(command, "%*s %s", username); // Extract username from the command
+
+            char groups_not_joined[(MAX_GROUP + 1) * 20] = {0};
+            get_groups_not_joined(username, groups_not_joined);
+
+            if (strcmp(groups_not_joined, "Error") == 0) {
+                send_message(client_socket, "Error retrieving group list");
+            } else if (strlen(groups_not_joined) == 0) {
+                send_message(client_socket, "No available groups to join");
+            } else {
+                send_message(client_socket, groups_not_joined); // Send list of groups to the client
+            }
         }
     }
 }
@@ -226,7 +279,6 @@ int main() {
     int opt = 1;
     int addrlen = sizeof(address);
 
-    // Socket setup...
     // Creating socket file descriptor
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == 0) {

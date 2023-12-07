@@ -23,5 +23,12 @@ int main (){
     fflush(stdin);
     fgets(respon, BUFF_SIZE, stdin);
     printf("%s\n", respon);
+
+    printf("\n--------------------------------\n");
+    char command[BUFF_SIZE] = "CREATE_GROUP ffffff username";
+    char username[20] = {0};
+    sscanf(command, "%*s %*s %s", username);  
+    printf("%s\n", username);
+
     return 0 ; 
 }

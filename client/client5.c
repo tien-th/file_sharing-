@@ -7,9 +7,10 @@
 #include <arpa/inet.h>
 
 #define SERVER_ADDR "127.0.0.1"
-#define SERVER_PORT 9998
+#define SERVER_PORT 9989
 #define BUFF_SIZE 512
 #define FILE_BUFF_SIZE 1024
+#define MAX_GROUP 100
 
 char USERNAME[20];
 
@@ -154,18 +155,7 @@ int main() {
         close(sockfd);
         return 1;
     }
-    // Example usage
-    
-    
-    // send_command(sockfd, "LOGIN", "john_doe hashed_password");
-    // send_command(sockfd, "CREATE_GROUP", "group1 john_doe");
-    // send_command(sockfd, "JOIN_GROUP", "group1 jane_smith");
-    // upload_file(sockfd, "example.txt");
-    // download_file(sockfd, "example.txt");
 
-    // registerAcc(sockfd, "tien tien");
-    // char *tmp = login(sockfd, login_data);
-    // strcpy(USERNAME, result);
     char command[BUFF_SIZE] = {0};
     // menu for user select 
     while (1) {
@@ -215,10 +205,14 @@ int main() {
             printf("1. Create group (command: CREATE_GROUP group_name)\n");
             printf("2. Join group (command: JOIN_GROUP group_name)\n");
             printf("3. Your group\n");
-            int select = scanf("%d", &select);
+            int select; 
+            if (scanf("%d", &select) != 1) {
+                printf("STDIN ERROR" );
+            }
             switch (select)
             {
                 case 1:
+                {
                     printf("\nEnter group name you want to create: \n");
 
                     char group_name[20] = {0};
@@ -226,10 +220,19 @@ int main() {
                     fgets(group_name, sizeof(group_name), stdin);
                     group_name[strcspn(group_name, "\n")] = '\0';
                     create_group(sockfd, "CREATE_GROUP", USERNAME ,group_name);
-                // case 2:
-    
-                    // char group_list[BUFF_SIZE] = {0}; 
-                    // send_command(sockfd, "GET_GROUP_LIST", USERNAME); 
+                    break;
+                }
+                case 2:
+                {
+                    
+                    char group_list[(MAX_GROUP + 1) * 20] = {0};
+                    send_command(sockfd, "GET_GROUP_LIST", USERNAME); 
+                    recv(sockfd, group_list, sizeof(group_list), 0);
+                    printf("List of groups you can join: \n %s\n", group_list);
+                    break;
+                }
+                default:
+                    break;
             }
         }
 
