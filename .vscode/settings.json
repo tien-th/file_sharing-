@@ -2,6 +2,7 @@
     "C_Cpp.errorSquiggles": "disabled",
     "files.associations": {
         "socket.h": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "pthread.h": "c"
     }
 }

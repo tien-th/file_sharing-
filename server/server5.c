@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <signal.h>
 #include <pthread.h> 
+#include <sys/stat.h>
 
 #define PORT 9989
 #define BUFF_SIZE 512
@@ -14,11 +15,22 @@
 #define MAX_CLIENTS 100
 #define MAX_GROUP 100
 
+char sys_path[] = "/mnt/disk3/tien_aiot/file_sharing-/server/db";
 
 typedef struct sockaddr SOCKADDR;
 typedef struct sockaddr_in SOCKADDR_IN;
 
 
+// utils.c
+void create_folder_if_not_exist(const char *folder_path) {
+    // Check if the folder exists
+    struct stat st = {0};
+    if (stat(folder_path, &st) == -1) {
+        // If not, create the folder
+        mkdir(folder_path, 0777);
+    }
+}
+// utils.c
 int check_username_existence(const char *username) {
     FILE *file = fopen("users.txt", "r");
     if (file != NULL) {
@@ -36,7 +48,33 @@ int check_username_existence(const char *username) {
     }
     return 0; // Username does not exist
 }
+// utils.c
+const char *extract_filename(const char *path) {
+    const char *last_slash = strrchr(path, '/');  // Find the last occurrence of '/'
+    
+    if (last_slash != NULL) {
+        return last_slash + 1;  // Return the part after the last '/'
+    } else {
+        return path;  // No '/' found, return the original path
+    }
+}
+// utils.c
+int is_member(const char *username, const char *groupname) {
+    FILE *file = fopen("group_members.txt", "r");
+    char line[1024];
+    char group_name[20], member[20];
 
+    if (file != NULL) {
+        while (fscanf(file, "%s %s", group_name, member) != EOF) {
+            if (strcmp(username, member) == 0 && strcmp(groupname, group_name) == 0) {
+                fclose(file);
+                return 1;
+            }
+        }
+        fclose(file);
+    }
+    return 0;
+}
 
 // utils.c
 void send_message(int client_socket, const char *message) {
@@ -138,8 +176,6 @@ void handle_group_creation(int client_socket, char *command) {
 // } 
 
 void get_groups_not_joined(const char *username, char *groups_not_joined) {
-    printf("groups_not_joined: %s\n", groups_not_joined);
-    printf("username: %s\n", username);
 
     FILE *groups_file = fopen("groups.txt", "r");
     FILE *members_file = fopen("group_members.txt", "r");
@@ -152,8 +188,7 @@ void get_groups_not_joined(const char *username, char *groups_not_joined) {
         return;
     }
 
-    // Skip the header line in groups.txt
-    // fgets(line, sizeof(line), groups_file);
+
 
     while (fscanf(groups_file, "%s %s", group_name, creator) != EOF) {
         is_member = 0;
@@ -173,7 +208,7 @@ void get_groups_not_joined(const char *username, char *groups_not_joined) {
         }
 
         if (!is_member) {
-            printf("\nUser %s has not joined group %s\n", username, group_name);
+
             strcat(groups_not_joined, group_name);
             strcat(groups_not_joined, "\n");
         }
@@ -186,31 +221,79 @@ void get_groups_not_joined(const char *username, char *groups_not_joined) {
 
 
 
-
 void handle_join_group(int client_socket) {
     return ;
 }
 
-void handle_file_upload(int client_socket) {
+
+void handle_file_upload(int client_socket, const char *command) {
     // Implement file upload logic
     // Save files to the respective group folder
-    char filename[BUFF_SIZE];
-    recv(client_socket, filename, BUFF_SIZE, 0);
+    char group_name[20] = {0}; char filename[BUFF_SIZE] = {0};
+    char user_name[BUFF_SIZE] = {0};
+    sscanf(command, "%*s %s %s %s", group_name, filename, user_name); // Extract group name from the command
+    
+    // Check if the user is a member of the group
+    if (!is_member(user_name, group_name)) {
+        send_message(client_socket, "0");
+        return;
+    }
+    
 
-    FILE *file = fopen(filename, "wb");
-    char file_buffer[FILE_BUFF_SIZE];
+    char folder_path[BUFF_SIZE] = {0}; 
+    snprintf(folder_path, sizeof(folder_path), "%s/%s", sys_path, group_name);
+    create_folder_if_not_exist(folder_path);
+    
+    const char *extracted_filename = extract_filename(filename);
 
-    if (file != NULL) {
-        int bytes_received;
-        while ((bytes_received = recv(client_socket, file_buffer, FILE_BUFF_SIZE, 0)) > 0) {
-            fwrite(file_buffer, sizeof(char), bytes_received, file);
+    char file_path[BUFF_SIZE] = {0};
+
+    snprintf(file_path, sizeof(file_path), "%s/%s/%s", sys_path, group_name, extracted_filename);
+
+    
+    send_message(client_socket, "1");
+    printf("Start upload\n");
+    
+    long file_size;
+    recv(client_socket, &file_size, sizeof(file_size), 0);
+
+    
+    printf("Received file size: %ld\n", file_size);
+    int bytes_received = 0;
+    char file_buffer[FILE_BUFF_SIZE] = {0};
+    while (bytes_received < file_size) 
+    {
+        int bytes = recv(client_socket, file_buffer, FILE_BUFF_SIZE, 0);
+        if (bytes > 0) {
+            FILE *file = fopen(file_path, "ab");
+            fwrite(file_buffer, sizeof(char), bytes, file);
+            fclose(file);
+            bytes_received += bytes;
+            memset(file_buffer, 0, sizeof(file_buffer));
         }
-        fclose(file);
+        else {
+            break;
+        }
+
     }
 
-    // Additional logic to update files_info.txt
-    // ...
+    // write to files_info.txt
+    printf("write to files_info.txt\n");
 
+    memset(file_path, 0, sizeof(file_path));
+    snprintf(file_path, sizeof(file_path), "%s/%s/%s", sys_path, group_name, "files_info.txt");
+    FILE *file = fopen(file_path, "a");
+    if (file != NULL) {
+        time_t raw_time;
+        struct tm *time_info;
+        time(&raw_time);
+        time_info = localtime(&raw_time);
+        char time_str[20] = {0};
+        strftime(time_str, sizeof(time_str), "%d/%m/%Y|%H:%M:%S", time_info);
+        fprintf(file, "%s %s %s\n", extracted_filename, user_name, time_str);
+        fclose(file);
+    }
+    printf("Done\n");
 }
 
 void handle_file_download(int client_socket) {
@@ -229,6 +312,25 @@ void handle_file_download(int client_socket) {
         }
         fclose(file);
     }
+}
+
+void get_groups_joined(int client_socket,const char *command){
+    char username[20] = {0};
+    sscanf(command, "%*s %s", username);
+    char list_of_groups[(MAX_GROUP + 1) * 20] = {0};
+    FILE *file = fopen("group_members.txt", "r");
+    char line[1024]; char group_name[20], member[20];
+
+    while(fscanf(file, "%s %s", group_name, member) != EOF ) {
+        if (strcmp(username, member) == 0) {
+            strcat(list_of_groups, group_name);
+            strcat(list_of_groups, "\n");
+        }
+    }
+
+    fclose(file);
+    send_message(client_socket, list_of_groups);
+
 }
 
 void * process_client_request(void *arg) {
@@ -255,7 +357,7 @@ void * process_client_request(void *arg) {
             handle_user_login(client_socket, command);
         } else if (strncmp(command, "CREATE_GROUP", 12) == 0) {
             handle_group_creation(client_socket, command);
-        } else if (strncmp(command, "GET_GROUP_LIST", 14) == 0) {
+        } else if (strncmp(command, "NOT_JOINED_GROUP", 16) == 0) {
             char username[20] = {0};
             sscanf(command, "%*s %s", username); // Extract username from the command
 
@@ -269,6 +371,25 @@ void * process_client_request(void *arg) {
             } else {
                 send_message(client_socket, groups_not_joined); // Send list of groups to the client
             }
+
+        } else if (strncmp(command, "JOIN_GROUP", 10) == 0) {
+            // TODO
+        } else if (strncmp(command, "LEAVE_GROUP", 11) == 0) {
+            // TODO
+        } else if (strncmp(command, "YOUR_GROUPS", 11) == 0) {
+            get_groups_joined(client_socket, command);
+
+        } else if (strncmp(command, "UPLOAD", 6) == 0) {
+            
+            handle_file_upload(client_socket, command);
+        } else if (strncmp(command, "DOWNLOAD_FILE", 13) == 0) {
+            handle_file_download(client_socket);
+        } else if (strncmp(command, "QUIT", 4) == 0) {
+            printf("Client disconnected\n");
+            return 0;
+        } else {
+            printf("Invalid command\n");
+
         }
     }
 }
@@ -320,8 +441,8 @@ int main() {
 // Xử lý file có kích thước lớn bất kỳ ??? 
 // Liệt kê danh sách nhóm 
 // Liệt kê danh sách thành viên trong nhóm
-// Yêu cầu tham gia một nhóm và phê duyệt
+// Yêu cầu tham gia một nhóm và phê duyệt                           ////// khó
 // Thoát khỏi một nhóm
-// Mời tham gia một nhóm và phê duỵet, Xóa thành viên khỏi nhóm
+// Mời tham gia một nhóm và phê duỵet, Xóa thành viên khỏi nhóm     ////// khó
 // Liệt kê nội dung thư mục 
-//  Ghi log 
+// Ghi log 

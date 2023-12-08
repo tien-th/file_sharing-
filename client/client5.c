@@ -14,12 +14,32 @@
 
 char USERNAME[20];
 
-typedef struct {
-    char groupname[20];
-    char creator[20];
-    char ** member;
-    int member_count; 
-} Group;
+// utils.c
+long get_file_size(const char *filename) {
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL) {
+        perror("Error opening file");
+        return -1;  // Return -1 to indicate an error
+    }
+
+    // Seek to the end of the file
+    if (fseek(file, 0, SEEK_END) != 0) {
+        perror("Error seeking to end of file");
+        fclose(file);
+        return -1;
+    }
+
+    // Get the current position, which corresponds to the file size
+    long size = ftell(file);
+    if (size == -1) {
+        perror("Error getting file size");
+        fclose(file);
+        return -1;
+    }
+
+    fclose(file);
+    return size;
+}
 
 // utils.c
 void clear_input_buffer() {
@@ -105,16 +125,25 @@ char * login(int sockfd, const char * data) {
 }
 
 void upload_file(int sockfd, const char *filename) {
-    send_command(sockfd, "UPLOAD_FILE", filename);
-
     FILE *file = fopen(filename, "rb");
     char file_buffer[FILE_BUFF_SIZE];
     int bytes_read;
 
     if (file != NULL) {
+        // Get the file size
+        fseek(file, 0, SEEK_END);
+        long file_size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        // Send the file size to the server
+        send(sockfd, &file_size, sizeof(file_size), 0);
+
+        // Send the file content
         while ((bytes_read = fread(file_buffer, sizeof(char), FILE_BUFF_SIZE, file)) > 0) {
             send(sockfd, file_buffer, bytes_read, 0);
+            memset(file_buffer, 0, sizeof(file_buffer));
         }
+
         fclose(file);
     }
 }
@@ -134,6 +163,62 @@ void download_file(int sockfd, const char *filename) {
     }
 }
 
+void join_group(int sockfd, const char *username, const char *groupname) {
+    send_command(sockfd, "JOIN_GROUP", groupname);
+    // TODO
+}
+
+void leave_group(int sockfd, const char *username, const char *groupname) {
+    send_command(sockfd, "LEAVE_GROUP", groupname);
+    // TODO
+}
+
+void group_function(int sockfd, const char *username) {
+    char group_list[(MAX_GROUP + 1) * 20] = {0};
+    send_command(sockfd, "YOUR_GROUPS", USERNAME); 
+    recv(sockfd, group_list, sizeof(group_list), 0);
+    printf("List of your groups: \n%s\n", group_list);
+
+    while(1)
+    {    
+        printf("What do you want ?: \n");
+        printf("1. Send file to group (command: UPLOAD group_name file_path)\n");
+        printf("2. Download file from group (command: DOWNLOAD_FILE group_name file_name)\n");
+        printf("3. Show group members (command: SHOW_MEMBERS group_name)\n");
+        printf("4. Leave group (command: LEAVE_GROUP group_name)\n");
+        printf("5. Exit (command: exit) \n");
+
+        char command[BUFF_SIZE] = {0};
+        printf("\n---------input---------\n");
+        // clear_input_buffer(); 
+        fflush(stdin); 
+        printf("\n---------input---------\n");
+        fgets(command, sizeof(command), stdin);
+        command[strcspn(command, "\n")] = '\0';
+        printf("----------------------------\n");
+        if (strcmp(command, "exit") == 0) {
+            break;
+        }
+        else if (strncmp(command, "UPLOAD", 5) == 0 ) {
+            send_command(sockfd, command , username); 
+            char ack[BUFF_SIZE] = {0};
+            recv(sockfd, ack, sizeof(ack), 0);
+            if (strcmp(ack, "1") == 0) {
+                printf("Start upload\n");
+                char filename[BUFF_SIZE] = {0};
+                sscanf(command, "%*s %*s %s", filename);
+                long file_size = get_file_size(filename);
+                upload_file(sockfd, filename);
+                printf("Upload successful\n");
+            }
+            else {
+                printf("Upload failed\n");
+            }
+
+        }
+    }
+
+}
 
 
 int main() {
@@ -176,7 +261,6 @@ int main() {
         {
         case 1: 
             printf("Enter (username password) for register: \n");
-            // fflush(stdin);
             clear_input_buffer();
             fgets(command, sizeof(command), stdin);
             command[strcspn(command, "\n")] = '\0';
@@ -226,11 +310,25 @@ int main() {
                 {
                     
                     char group_list[(MAX_GROUP + 1) * 20] = {0};
-                    send_command(sockfd, "GET_GROUP_LIST", USERNAME); 
+                    send_command(sockfd, "NOT_JOINED_GROUP", USERNAME); 
                     recv(sockfd, group_list, sizeof(group_list), 0);
-                    printf("List of groups you can join: \n %s\n", group_list);
+                    printf("List of groups you can join: \n%s\n", group_list);
+
+                    printf("Enter group name you want to join: \n");
+
+                    char group_name[20] = {0};
+                    clear_input_buffer();
+                    fgets(group_name, sizeof(group_name), stdin);
+                    group_name[strcspn(group_name, "\n")] = '\0';
+                    join_group(sockfd, USERNAME, group_name);
                     break;
+
                 }
+                case 3:
+                {
+                    group_function(sockfd, USERNAME);
+                }
+
                 default:
                     break;
             }
