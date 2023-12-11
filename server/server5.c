@@ -30,6 +30,7 @@ void create_folder_if_not_exist(const char *folder_path) {
         mkdir(folder_path, 0777);
     }
 }
+
 // utils.c
 int check_username_existence(const char *username) {
     FILE *file = fopen("users.txt", "r");
@@ -441,8 +442,11 @@ int main() {
 // Xử lý file có kích thước lớn bất kỳ ??? 
 // Liệt kê danh sách nhóm 
 // Liệt kê danh sách thành viên trong nhóm
-// Yêu cầu tham gia một nhóm và phê duyệt                           ////// khó
+// Yêu cầu tham gia một nhóm và phê duyệt                           
 // Thoát khỏi một nhóm
-// Mời tham gia một nhóm và phê duỵet, Xóa thành viên khỏi nhóm     ////// khó
+// Mời tham gia một nhóm và phê duỵet, Xóa thành viên khỏi nhóm     // TODO 
+
+// Download file từ group // TODO
+
 // Liệt kê nội dung thư mục 
 // Ghi log 

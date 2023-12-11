@@ -189,13 +189,10 @@ void group_function(int sockfd, const char *username) {
         printf("5. Exit (command: exit) \n");
 
         char command[BUFF_SIZE] = {0};
-        printf("\n---------input---------\n");
         // clear_input_buffer(); 
         fflush(stdin); 
-        printf("\n---------input---------\n");
         fgets(command, sizeof(command), stdin);
         command[strcspn(command, "\n")] = '\0';
-        printf("----------------------------\n");
         if (strcmp(command, "exit") == 0) {
             break;
         }
