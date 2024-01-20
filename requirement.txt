@@ -1,2 +1,0 @@
-sử dụng multi thread v 
-sử lý tài nguyên găng là file user.txt
