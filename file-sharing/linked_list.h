@@ -70,11 +70,16 @@ node * insertEnd(singleList *list,void *e)
 	{
       (*list).root = (*list).tail = newNode;
 	}
-	else
-	{
-		(*list).tail->next = newNode;
-		(*list).tail = newNode;
-	}
+	else {
+    (*list).cur = (*list).prev = (*list).root;
+    while((*list).cur != NULL)
+      {
+        (*list).prev = (*list).cur;
+        (*list).cur = (*list).cur->next;
+      }
+    (*list).prev->next = newNode;
+    (*list).tail = newNode;
+  }
 	return (*list).tail;
 }
 

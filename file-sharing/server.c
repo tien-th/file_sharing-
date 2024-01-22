@@ -78,6 +78,7 @@ void checkFile(singleList files){
 
 void checkUser(singleList users){
 	// print all information of users
+	printf ("\n@@@@@@@@@@@@@@@@@@@@@@ Check All users @@@@@@@@@@@@@@@@@@@@@@\n");
 	users.cur = users.root;
 	while (users.cur != NULL)
 	{	
@@ -86,6 +87,17 @@ void checkUser(singleList users){
 		printf("password: %s\n", ((user_struct*)users.cur->element)->password);
 		printf("status: %d\n", ((user_struct*)users.cur->element)->status);
 		printf("count group: %d\n", ((user_struct*)users.cur->element)->count_group);
+
+		//  print all joined groups of user
+		singleList joined_groups;
+		createSingleList(&joined_groups);
+		joined_groups = ((user_struct*)users.cur->element)->joined_groups;
+		joined_groups.cur = joined_groups.root;
+		while(joined_groups.cur!=NULL){
+			printf("joined group: %s\n", ((simple_group_struct*)joined_groups.cur->element)->group_name);
+			joined_groups.cur = joined_groups.cur->next;
+		}
+
 		printf("\n-------------------------------\n");
 		users.cur = users.cur->next;
 	}
@@ -107,6 +119,21 @@ void checkRequest(singleList requests){
 		requests.cur = requests.cur->next;
 	}
 }
+
+//
+
+char *getGroupOwner(singleList groups, char group_name[50]){
+	groups.cur = groups.root;
+	while(groups.cur != NULL)
+	{
+		if(strcmp(((group_struct*)groups.cur->element)->group_name, group_name) == 0){
+			return ((group_struct*)groups.cur->element)->owner;
+		}
+		groups.cur = groups.cur->next;
+	}
+	return NULL;
+}
+
 
 void deleteRequest(singleList *requests, char group_name[50], char user_name[50], int request_from_user);
 void convertUserRequestsToString(singleList simple_request, char str[1000]);
@@ -1206,6 +1233,16 @@ void deleteFile(singleList *files, singleList groups, char group_name[], char fi
 		(files_of_group).cur = (files_of_group).prev;
 	}
 	printf("delete file: %s from %s\n", file_name, group_name);
+	
+	// delete file in storage
+	char cmd[100];
+	strcpy(cmd, "rm ");
+	strcat(cmd, "./files/");
+	strcat(cmd, group_name);
+	strcat(cmd, "/");
+	strcat(cmd, file_name);
+	system(cmd);
+	
 	writeToGroupFile(groups);
 	saveFiles(*files);
 }
@@ -1343,6 +1380,7 @@ void kickMemberOut(singleList *files, singleList groups, singleList users, char 
 				members.cur = members.prev;
 				free(newNode);
 				((group_struct*)groups.cur->element)->members = members;
+				
 			}
 			break;
 		}
@@ -1729,12 +1767,13 @@ void * handleThread(void *my_sock){
 									// update request to join group
 									
 									
-
+									checkRequest(requests);
 									int tmp = updateRequest(&requests, buff, loginUser->user_name, 1);
 									if (tmp == 1) {
 										printf("update request successfully\n");
 										sendCode(new_socket , REQUESTED_TO_JOIN);
 										writeToRequestFile(requests);
+										checkRequest(requests);
 									}
 									else if (tmp == 0) {
 										printf("request already exist\n");
@@ -1843,19 +1882,16 @@ void * handleThread(void *my_sock){
 														//delete request
 														deleteRequest(&requests, current_group, buff, 1);
 														writeToRequestFile(requests);
-														
-														checkGroup(groups);
-
+														checkUser(users);
 														if (addMember(groups, current_group, buff) + addGroupToJoinedGroups(users, buff, current_group) == 2) {
 															sendCode(new_socket, APPROVE_SUCCESS);
+															checkUser(users);
 															saveUsers(users);
 															writeToGroupFile(groups);
 														}
 														else {
 															sendWithCheck(new_socket , "something went wrong", 21, 0 );
 														}
-
-														checkGroup(groups);
 													}
 												}
 												break;
@@ -1883,7 +1919,8 @@ void * handleThread(void *my_sock){
 												}
 												break;
 											case DELETE_REQUEST: //request code: 133
-												if(isUserAMember(users, current_group, loginUser->user_name) == 1){
+												// if(isUserAMember(users, current_group, loginUser->user_name) == 1){
+												if(isOwnerOfGroup(groups, current_group, loginUser->user_name) == 1){
 													printf("DELETE_REQUEST\n");
 													singleList files_can_delete;
 													createSingleList(&files_can_delete);
@@ -1899,7 +1936,7 @@ void * handleThread(void *my_sock){
 													}
 												}else{
 													printf("kicked\n");
-													sendCode(new_socket, MEMBER_WAS_KICKED);
+													sendCode(new_socket, NOT_OWNER_OF_GROUP);
 													REQUEST = BACK_REQUEST;
 												}
 												break;
@@ -1926,9 +1963,11 @@ void * handleThread(void *my_sock){
 												}
 												else {
 													// kick member out of group
+
 													kickMemberOut(&files, groups, users, current_group, loginUser->user_name);
 													sendCode(new_socket, QUIT_GROUP_SUCCESS);
 												}
+												REQUEST = BACK_REQUEST;
 												break;
 											
 											case VIEW_USERS_OF_GROUP_REQUEST: 
@@ -1938,11 +1977,11 @@ void * handleThread(void *my_sock){
 													createSingleList(&members);
 													members = getAllMembersOfGroup(groups, current_group);
 													convertSimpleUsersToString(members, str);
-													if(isOwnerOfGroup(groups, current_group,loginUser->user_name) == 1) {
-														// add owner to string
-														strcat(str, "+");
-														strcat(str, loginUser->user_name);
-													}
+													// get group owner of group
+													char owner[50];
+													strcpy(owner, getGroupOwner(groups, current_group));
+													strcat(str, "+");
+													strcat(str, owner);
 													sendWithCheck(new_socket, str, strlen(str)+1, 0);
 												}else{
 													printf("kicked");
@@ -1965,8 +2004,10 @@ void * handleThread(void *my_sock){
 														sendWithCheck(new_socket, str, strlen(str)+1, 0);
 														readWithCheck(new_socket, buff, 100);
 														if(atoi(buff) != NO_MEMBER_TO_KICK){
-															printf("group = %s, member = %s\n", current_group, buff);
+															printf("group = %s kick member = %s\n", current_group, buff);
+															checkUser(users);
 															kickMemberOut(&files,groups, users,current_group, buff);
+															checkUser(users);
 															singleList members1;
 															createSingleList(&members1);
 															members1 = getAllMembersOfGroup(groups, current_group);

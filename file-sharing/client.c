@@ -510,15 +510,6 @@ void navigation(int sock){
 											scanf("%d", &selected_file);
 											sendWithCheck(sock, available_files[selected_file-1] , strlen(available_files[selected_file-1]) + 1 , 0 );
 											if(receiveFile(sock) == 1){
-												// printf("Open the file? (Y/n): ");
-												// char choice[10], command[100];
-												// scanf("%s", choice);
-												// if(strcmp(choice, "Y") == 0){
-												// 	command[0] = '\0';
-												// 	strcat(command, "xdg-open ./client_source/");
-												// 	strcat(command, available_files[selected_file-1]);
-												// 	system(command);
-												// }
 												printf("Download successfully\n");
 											}
 										}else{
@@ -534,7 +525,7 @@ void navigation(int sock){
 									sendCode(sock, DELETE_REQUEST);
 									printf("==================== Available Files =====================\n");
 									readWithCheck(sock, buffer, 1000); 
-									if(atoi(buffer) != MEMBER_WAS_KICKED){
+									if(atoi(buffer) != NOT_OWNER_OF_GROUP){
 										char available_files[20][50] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0'};
 										int number_of_available_files = printAvailableElements(buffer, available_files);
 										if(number_of_available_files > 0){
@@ -547,7 +538,7 @@ void navigation(int sock){
 											sendCode(sock, NO_FILE_TO_DELETE);
 										}
 									}else{
-										printf("You have been kicked out of this group.\n");
+										printf("!!! Only the administrator of group can do this\n");
 										z3 = 10;
 									}
 									break;
