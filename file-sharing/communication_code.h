@@ -20,6 +20,7 @@
 #define NOTIFICATION_REQUEST 140
 #define QUIT_GROUP_REQUSET 141
 #define VIEW_USERS_OF_GROUP_REQUEST 142
+#define RENAME_REQUEST 143
 
 //==================================================//
 
@@ -60,7 +61,7 @@
 #define NO_MEMBER_TO_INVITE 915
 #define NO_ACCEPT_INVITE 916
 #define IS_OWNER_OF_GROUP 917
-
+#define NO_FILE_TO_RENAME 918
 //==================================================//
 
 

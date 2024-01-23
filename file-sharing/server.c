@@ -1185,6 +1185,54 @@ singleList getFilesCanDelete(singleList files, singleList groups, char group_nam
 	
 	return files_can_delete;
 }
+// renameFile(&files, groups, current_group, file_name, new_name);
+void renameFile(singleList *files, singleList groups, char group_name[], char file_name[50], char new_name[50]) {
+	//rename file in singleList files
+	(*files).cur = (*files).root;
+	while ((*files).cur != NULL)
+	{
+		if( strcmp( ((file_struct*)(*files).cur->element)->name, file_name) == 0 && strcmp( ((file_struct*)(*files).cur->element)->group, group_name) == 0){
+			strcpy(((file_struct*)(*files).cur->element)->name, new_name);
+			break;
+		}
+		(*files).cur = (*files).cur->next;
+	}
+
+	groups.cur = groups.root;
+	while(groups.cur != NULL){
+		if( strcmp(((group_struct*)(groups).cur->element)->group_name, group_name) == 0){
+			break;
+		}
+		groups.cur = groups.cur->next;
+	}
+
+	singleList files_of_group; 
+	files_of_group = getAllFilesOfGroup(groups, group_name);
+	(files_of_group).cur = (files_of_group).root;
+	while ((files_of_group).cur != NULL && strcmp( ((simple_file_struct*)(files_of_group).cur->element)->file_name, file_name) != 0)
+	{
+		(files_of_group).cur = (files_of_group).cur->next;
+	}
+	strcpy(((simple_file_struct*)(files_of_group).cur->element)->file_name, new_name);
+	((group_struct*)(groups).cur->element)->files = (files_of_group);
+
+	//  rename file cmd
+	printf ("cmd rename file: %s to %s\n", file_name, new_name);
+
+	char cmd[100];
+	strcpy(cmd, "mv ");
+	strcat(cmd, "./files/"); strcat(cmd, group_name); strcat(cmd, "/");
+	strcat(cmd, file_name);
+	strcat(cmd, " ");
+	strcat(cmd, "./files/"); strcat(cmd, group_name); strcat(cmd, "/");
+	strcat(cmd, new_name);
+	system(cmd);
+	printf("cmd: %s\n", cmd);
+
+	writeToGroupFile(groups);
+	saveFiles(*files);
+}
+
 
 void deleteFile(singleList *files, singleList groups, char group_name[], char file_name[50]){
 	//delete file in singleList files
@@ -1937,9 +1985,41 @@ void * handleThread(void *my_sock){
 												}else{
 													printf("kicked\n");
 													sendCode(new_socket, NOT_OWNER_OF_GROUP);
-													REQUEST = BACK_REQUEST;
+													// REQUEST = BACK_REQUEST;
 												}
 												break;
+
+											case RENAME_REQUEST:
+												if(isOwnerOfGroup(groups, current_group, loginUser->user_name) == 1){
+													printf("RENAME_REQUEST\n");
+													singleList files_can_rename;
+													createSingleList(&files_can_rename);
+													files_can_rename = getFilesCanDelete(files, groups, current_group ,loginUser->user_name);
+													convertSimpleFilesToString(files_can_rename, str);
+													sendWithCheck(new_socket , str, strlen(str) + 1, 0 );
+													readWithCheck( new_socket , buff, 100);
+													if (atoi(buff) != NO_FILE_TO_RENAME) {
+														char file_name[50], new_name[50];
+														printf("file da chon: %s\n", buff);
+														char *token; 
+														token = strtok(buff, ":");
+														strcpy(new_name, token);
+														token = strtok(NULL, ":");
+														strcpy(file_name, token);
+
+														printf("file_name = %s, new_name = %s\n", file_name, new_name);
+														renameFile(&files, groups, current_group, file_name, new_name);
+													}else {
+														printf("No file to rename\n");
+													}
+
+
+												} else { 
+													printf("Not owner of group\n");
+													sendCode(new_socket, NOT_OWNER_OF_GROUP);
+												}
+												break ;
+
 											case VIEW_FILES_REQUEST: //request code: 134
 												if(isUserAMember(users, current_group, loginUser->user_name) == 1){
 													printf("VIEW_FILES_REQUEST\n");

@@ -236,13 +236,14 @@ int menu3(char group_name[50])
     printf("1. Upload\n");
     printf("2. Download\n");
     printf("3. Delete file\n");
-    printf("4. View all files\n");
-	printf("5. Approve user\n");
-	printf("6. Invite user\n");
-	printf("7. Kick\n");
-	printf("8. View all users\n");
-	printf("9. Quit group\n");
-	printf("10. Back\n");
+	printf("4. Rename file\n");
+    printf("5. View all files\n");
+	printf("6. Approve user\n");
+	printf("7. Invite user\n");
+	printf("8. Kick\n");
+	printf("9. View all users\n");
+	printf("10. Quit group\n");
+	printf("11. Back\n");
 	printf("==========================================================\n");
     printf("=> Enter your choice: ");
     catch = scanf("%d",&choice);
@@ -417,13 +418,13 @@ void navigation(int sock){
 						}else{
 							printf("You have not joined any groups.\n");
 							sendCode(sock, NO_GROUP_TO_ACCESS);
-							z3 = 10;
+							z3 = 11;
 						}
 						while(z3 != 10){
 							z3 = menu3(available_group[selected_group-1]);
 							switch (z3)
 							{	
-								case 6:
+								case 7:
 									sendCode(sock, INVITE_MEMBER_REQUEST);
 									printf("==================== Available Members ====================\n");
 									readWithCheck(sock, buffer, 1000);
@@ -460,7 +461,7 @@ void navigation(int sock){
 									}
 									break;
 
-								case 5:
+								case 6:
 									sendCode(sock, APPROVE_REQUEST);
 									printf("==================== Available Requests ====================\n");
 									readWithCheck(sock, buffer, 1000); 
@@ -494,7 +495,7 @@ void navigation(int sock){
 
 								case 1:
 									if( uploadFile(sock, available_group[selected_group-1]) == 0){
-										z3 = 10;
+										z3 = 11;
 									}
 									break;
 								case 2:
@@ -518,7 +519,7 @@ void navigation(int sock){
 										}
 									}else{
 										printf("You have been kicked out of this group.\n");
-										z3 = 10;
+										z3 = 11;
 									}
 									break;
 								case 3:
@@ -539,10 +540,42 @@ void navigation(int sock){
 										}
 									}else{
 										printf("!!! Only the administrator of group can do this\n");
-										z3 = 10;
+										
 									}
 									break;
-								case 4:
+
+								case 4: 
+									sendCode(sock, RENAME_REQUEST);
+									printf("==================== Available Files =====================\n");
+									readWithCheck(sock, buffer, 1000); 
+									if(atoi(buffer) != NOT_OWNER_OF_GROUP){
+										char available_files[20][50] = {'\0','\0','\0','\0','\0','\0','\0','\0'};
+										int number_of_available_files = printAvailableElements(buffer, available_files);
+										if(number_of_available_files > 0){
+											int selected_file;
+											printf("Which file do you want to rename? (1-%d): ", number_of_available_files);
+											if (scanf("%d", &selected_file) != 1) {
+        										printf("Invalid input\n");
+											}
+											getchar();
+											// sendWithCheck(sock, available_files[selected_file-1] , strlen(available_files[selected_file-1]) + 1 , 0 );
+											printf("Enter new name: ");											
+											fgets(buffer, 50, stdin);
+											buffer[strlen(buffer) - 1] = '\0';
+											// concatenate buffer = buffer + ":" + available_files[selected_file-1];
+											strcat(buffer, ":");	strcat(buffer, available_files[selected_file-1]);
+											sendWithCheck(sock, buffer , strlen(buffer) + 1 , 0 );
+										}else{
+											printf("This group does not have any files\n");
+											sendCode(sock, NO_FILE_TO_RENAME);
+										}
+									}else{
+										printf("!!! Only the administrator of group can do this\n");
+										// z3 = 11;
+									}
+									break;
+
+								case 5:
 									printf("======================= All Files ========================\n");
 									sendCode(sock, VIEW_FILES_REQUEST);
 									readWithCheck(sock, buffer, 1000); 
@@ -551,10 +584,10 @@ void navigation(int sock){
 										int number_of_available_files = printAvailableElements(buffer, available_files);
 									}else{
 										printf("You have been kicked out of this group.\n");
-										z3 = 10;
+										z3 = 11;
 									}
 									break;
-								case 7:
+								case 8:
 									sendCode(sock, KICK_MEMBER_REQUEST);
 									readWithCheck(sock, buffer, 1000);
 									if(atoi(buffer) != MEMBER_WAS_KICKED){
@@ -577,11 +610,11 @@ void navigation(int sock){
 										}
 									}else{
 										printf("You have been kicked out of this group.\n");
-										z3 = 10;
+										z3 = 11;
 									}
 									break;
 								
-								case 8:
+								case 9:
 								// VIEW ALL USERS
 									sendCode(sock, VIEW_USERS_OF_GROUP_REQUEST);
 									readWithCheck(sock, buffer, 1000);
@@ -599,17 +632,17 @@ void navigation(int sock){
 										}
 									}else{
 										printf("You have been kicked out of this group.\n");
-										z3 = 10;
+										z3 = 11;
 									}
 									break ;
 								
-								case 9: 
+								case 10: 
 									// QUIT GROUP
 									sendCode(sock, QUIT_GROUP_REQUSET);
 									readWithCheck(sock, buffer, 1000);
 									if (atoi(buffer) == QUIT_GROUP_SUCCESS){
 										printf("Quit group successfully\n");
-										z3 = 10;
+										z3 = 11;
 									}
 									else if (atoi(buffer) == IS_OWNER_OF_GROUP) {
 										printf("!!! You are the owner of this group\n");
@@ -617,9 +650,9 @@ void navigation(int sock){
 									else printf("Something wrong!!!\n");
 									break ;
 
-								case 10:
+								case 11:
 									sendCode(sock, BACK_REQUEST);
-									z3 = 10;
+									z3 = 11;
 									break;
 								default:
 									break;
