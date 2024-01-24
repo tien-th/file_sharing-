@@ -25,10 +25,11 @@ void sendWithCheck(int sock, char buff[BUFF_SIZE], int length, int option){
 
 int readWithCheck(int sock, char buff[BUFF_SIZE], int length){
 	int recvByte = 0;
-	recvByte = read(sock, buff, length);
+	recvByte = recv(sock, buff, length, 0);
 	if(recvByte > 0){
 		return recvByte;
 	}else{
+		printf("client recv error\n");
 		close(sock);
 		exit(0);
 	}
