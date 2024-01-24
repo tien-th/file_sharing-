@@ -120,7 +120,6 @@ void checkRequest(singleList requests){
 	}
 }
 
-//
 
 char *getGroupOwner(singleList groups, char group_name[50]){
 	groups.cur = groups.root;
@@ -166,7 +165,6 @@ int isFileExistInGroup(singleList groups, char group_name[], char file_name[]);
 int isOwnerOfGroup(singleList groups, char group_name[], char username[]);
 int getAllFilesOfUserInGroup(singleList *files, char group_name[50], char username[50], char all_files[20][50]);
 void kickMemberOut(singleList *files, singleList groups, singleList users, char group_name[50], char username[50]);
-singleList searchFileByCategory(singleList files, char category[10]);
 void signUp(int sock, singleList *users);
 int signIn(int sock, singleList users, user_struct **loginUser);
 void uploadFile(int sock, user_struct *loginUser);
@@ -337,7 +335,6 @@ void readGroupFile(singleList *groups){
 		//=====================end read files=========================================
 		insertEnd(groups, group_element); // add group_element to group_list
 	}
-	printf("Read group file successfully.\n");
 
 
 	fclose(fp);
@@ -589,8 +586,6 @@ void readRequestFile(singleList* requests){
 		insertEnd(requests, request);
 	}
 	fclose(f);
-
-	checkRequest(*requests);
 }
 
 void writeToRequestFile(singleList requests){
@@ -1469,99 +1464,6 @@ void kickMemberOut(singleList *files, singleList groups, singleList users, char 
 	saveUsers(users);
 }
 
-singleList searchFileByName(singleList files, char file_name[10]){
-	char full_name[50];
-	full_name[0] = '\0';
-	singleList file_found;
-	createSingleList(&file_found);
-	files.cur = files.root;
-	while (files.cur != NULL)
-	{
-		strcpy(full_name, ((file_struct*)files.cur->element)->name);
-		if(strstr(full_name, file_name) != NULL)
-		{
-			simple_file_struct *file_element = (simple_file_struct*) malloc(sizeof(simple_file_struct));
-			strcpy(file_element->file_name, full_name);
-			insertEnd(&file_found, file_element);
-		}
-		files.cur = files.cur->next;
-	}
-	printFile(file_found);
-	return file_found;
-}
-
-singleList searchFileByCategory(singleList files, char category[10]){
-	char sub_str[10] , file_name[50];
-	if( strcmp(category, "text") != 0 && strcmp(category, "image") != 0 && strcmp(category, "text") != 0 && strcmp(category, "audio") != 0 && strcmp(category, "video") != 0){
-		singleList file_found;
-		createSingleList(&file_found);
-		file_found = searchFileByName(files, category);
-		return file_found;
-	}
-	if( strcmp(category, "other") == 0){
-		singleList file_found;
-		createSingleList(&file_found);
-		files.cur = files.root;
-		while (files.cur != NULL)
-		{
-			strcpy(file_name, ((file_struct*)files.cur->element)->name);
-			if(strstr(file_name, ".jpg") == NULL && strstr(file_name, ".png") == NULL && strstr(file_name, ".jepg") == NULL && strstr(file_name, ".JPG") == NULL && strstr(file_name, ".PNG") == NULL && strstr(file_name, ".txt") == NULL && strstr(file_name, ".mp3") == NULL && strstr(file_name, ".mp4") == NULL)
-			{
-				simple_file_struct *file_element = (simple_file_struct*) malloc(sizeof(simple_file_struct));
-				strcpy(file_element->file_name, file_name);
-				insertEnd(&file_found, file_element);
-			}
-			files.cur = files.cur->next;
-		}
-		printFile(file_found);
-		return file_found;
-	}else if( strcmp(category, "image") == 0){
-		singleList file_found;
-		createSingleList(&file_found);
-		files.cur = files.root;
-		while (files.cur != NULL)
-		{
-			strcpy(file_name, ((file_struct*)files.cur->element)->name);
-			printf("file name: %s\n", file_name);
-			if(strstr(file_name, ".jpg") != NULL || strstr(file_name, ".png") != NULL || strstr(file_name, ".jepg") != NULL || strstr(file_name, ".JPG") != NULL || strstr(file_name, ".PNG") != NULL)
-			{
-				simple_file_struct *file_element = (simple_file_struct*) malloc(sizeof(simple_file_struct));
-				strcpy(file_element->file_name, file_name);
-				insertEnd(&file_found, file_element);
-			}
-			files.cur = files.cur->next;
-		}
-		printFile(file_found);
-		return file_found;
-	}else if(strcmp(category, "text") == 0)
-	{
-		strcpy(sub_str, ".txt");
-	}else if(strcmp(category, "audio") == 0)
-	{
-		strcpy(sub_str, ".mp3");
-	}else if(strcmp(category, "video") == 0)
-	{
-		strcpy(sub_str, ".mp4");
-	}
-	singleList file_found;
-	createSingleList(&file_found);
-	files.cur = files.root;
-	while (files.cur != NULL)
-	{
-		strcpy(file_name, ((file_struct*)files.cur->element)->name);
-		printf("file name: %s\n", file_name);
-		if(strstr(file_name, sub_str) != NULL)
-		{
-			simple_file_struct *file_element = (simple_file_struct*) malloc(sizeof(simple_file_struct));
-			strcpy(file_element->file_name, file_name);
-			insertEnd(&file_found, file_element);
-		}
-		files.cur = files.cur->next;
-	}
-	printFile(file_found);
-	return file_found;
-}
-
 int isUserAMember(singleList users, char group_name[50], char username[50]){
 	users.cur = users.root;
 	while(users.cur != NULL){
@@ -1815,13 +1717,11 @@ void * handleThread(void *my_sock){
 									// update request to join group
 									
 									
-									checkRequest(requests);
 									int tmp = updateRequest(&requests, buff, loginUser->user_name, 1);
 									if (tmp == 1) {
 										printf("update request successfully\n");
 										sendCode(new_socket , REQUESTED_TO_JOIN);
 										writeToRequestFile(requests);
-										checkRequest(requests);
 									}
 									else if (tmp == 0) {
 										printf("request already exist\n");
@@ -1930,10 +1830,10 @@ void * handleThread(void *my_sock){
 														//delete request
 														deleteRequest(&requests, current_group, buff, 1);
 														writeToRequestFile(requests);
-														checkUser(users);
+														// checkUser(users);
 														if (addMember(groups, current_group, buff) + addGroupToJoinedGroups(users, buff, current_group) == 2) {
 															sendCode(new_socket, APPROVE_SUCCESS);
-															checkUser(users);
+															// checkUser(users);
 															saveUsers(users);
 															writeToGroupFile(groups);
 														}
@@ -2085,9 +1985,9 @@ void * handleThread(void *my_sock){
 														readWithCheck(new_socket, buff, 100);
 														if(atoi(buff) != NO_MEMBER_TO_KICK){
 															printf("group = %s kick member = %s\n", current_group, buff);
-															checkUser(users);
+															// checkUser(users);
 															kickMemberOut(&files,groups, users,current_group, buff);
-															checkUser(users);
+															// checkUser(users);
 															singleList members1;
 															createSingleList(&members1);
 															members1 = getAllMembersOfGroup(groups, current_group);
@@ -2112,16 +2012,6 @@ void * handleThread(void *my_sock){
 										}
 									}
 								}
-								break;
-							case SEARCH_FILE_REQUEST: //request code: 15
-								printf("SEARCH_FILE_REQUEST\n");
-								readWithCheck(new_socket, buff, 100);
-								printf("Client want to search %s\n", buff);
-								singleList file_found;
-								createSingleList(&file_found);
-								file_found = searchFileByCategory(files, buff);
-								convertSimpleFilesToString(file_found, str);
-								sendWithCheck(new_socket, str, strlen(str)+1, 0);
 								break;
 
 							case NOTIFICATION_REQUEST: 

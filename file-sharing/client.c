@@ -207,9 +207,8 @@ int menu2()
 	printf("1. Create group\n");
     printf("2. Join group\n");
     printf("3. Access joined group\n");
-	printf("4. Search\n");
-	printf("5. Notifications\n");
-    printf("6. Logout\n");
+	printf("4. Notifications\n");
+    printf("5. Logout\n");
 	printf("=========================================================\n");
     printf("=> Enter your choice: ");
     catch = scanf("%d",&choice);
@@ -420,7 +419,7 @@ void navigation(int sock){
 							sendCode(sock, NO_GROUP_TO_ACCESS);
 							z3 = 11;
 						}
-						while(z3 != 10){
+						while(z3 != 11){
 							z3 = menu3(available_group[selected_group-1]);
 							switch (z3)
 							{	
@@ -659,32 +658,8 @@ void navigation(int sock){
 								}
 							}
 							break;
+
 					case 4:
-						sendCode(sock, SEARCH_FILE_REQUEST);
-						char category[7][10] = {"text","image","audio","video","other","name"};
-						printf("1. Text\n");
-						printf("2. Image\n");
-						printf("3. Audio\n");
-						printf("4. Video\n");
-						printf("5. Other\n");
-						printf("6. Search by name\n");
-						printf("7. Back\n");
-						printf("==========================================================\n");
-						printf("=> Enter your choice: ");
-						int category_choice;
-						scanf("%d", &category_choice);
-						if(category_choice == 6){
-							char search_name[50];
-							printf("Enter the filename: ");
-							scanf("%s", search_name);
-							sendWithCheck(sock, search_name , strlen(search_name) + 1 , 0 );
-						}
-						sendWithCheck(sock, category[category_choice-1] , strlen(category[category_choice-1]) + 1 , 0 );
-						readWithCheck(sock, buffer, 1000);
-						char available_files[60][50] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0'};
-						int number_of_available_files = printAvailableElements(buffer, available_files);
-						break;
-					case 5:
 						sendCode(sock, NOTIFICATION_REQUEST); 
 						readWithCheck(sock, buffer, 1000);
 						printf("====================== Notifications ======================\n");
@@ -711,7 +686,7 @@ void navigation(int sock){
 						}
 						break;
 					
-					case 6:
+					case 5:
 						sendCode(sock, LOGOUT_REQUEST);
 						readWithCheck(sock,buffer, BUFF_SIZE);
 						printf("-->logout: %s\n", buffer);
@@ -723,7 +698,7 @@ void navigation(int sock){
 						z2 = 1;
 						break;
 					}
-				}while(z2 >= 1 && z2 < 6);
+				}while(z2 >= 1 && z2 < 5);
 			}	
 			break;
 		default:
